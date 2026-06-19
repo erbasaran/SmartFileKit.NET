@@ -5,11 +5,11 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <AssemblyName>SmartFileKit</AssemblyName>
     <PackageId>SmartFileKit</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Authors>Ramazan Erbasaran</Authors>
     <Copyright>Copyright © 2026 Ramazan Erbasaran</Copyright>
     <Description>FileKit is a lightweight .NET library for file size formatting, MIME type detection, file signature validation, file type classification, and fluent validation rules for uploads.</Description>
-    <PackageTags>file, file-validation, mime-type, file-upload, dotnet, .net, file-size, validation, utilities, stream, security, file-helper</PackageTags>
+    <PackageTags>file, file-validation, file-signature, mime-type, file-upload, file-size, detection, validation, utilities, stream, security, signature, file-helper</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/erbasaran/SmartFileKit.NET</PackageProjectUrl>
     <RepositoryUrl>https://github.com/erbasaran/SmartFileKit.NET</RepositoryUrl>
