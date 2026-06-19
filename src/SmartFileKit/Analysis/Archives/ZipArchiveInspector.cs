@@ -43,6 +43,7 @@ namespace SmartFileKit.Analysis.Archives
 
             var entries = new List<string>();
             bool containsExecutable = false;
+            bool containsMacros = false;
             bool isEncrypted = false;
             bool isCorrupted = false;
             string detectedOfficeFormat = null;
@@ -76,7 +77,13 @@ namespace SmartFileKit.Analysis.Archives
                             containsExecutable = true;
                         }
 
-                        // 3. Inspect if entry is encrypted
+                        // 3. Check for macro binaries (VBA project)
+                        if (entry.FullName.EndsWith("vbaProject.bin", StringComparison.OrdinalIgnoreCase))
+                        {
+                            containsMacros = true;
+                        }
+
+                        // 4. Inspect if entry is encrypted
                         if (!entry.FullName.EndsWith("/", StringComparison.Ordinal) && !isEncrypted)
                         {
                             try
@@ -133,6 +140,7 @@ namespace SmartFileKit.Analysis.Archives
                 isCorrupted: false,
                 isEncrypted: isEncrypted,
                 containsExecutable: containsExecutable,
+                containsMacros: containsMacros,
                 detectedOfficeFormat: detectedOfficeFormat,
                 fileEntries: entries.AsReadOnly());
         }

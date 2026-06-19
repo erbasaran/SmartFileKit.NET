@@ -5,11 +5,29 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <AssemblyName>SmartFileKit</AssemblyName>
     <PackageId>SmartFileKit</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
     <Authors>Ramazan Erbasaran</Authors>
     <Copyright>Copyright © 2026 Ramazan Erbasaran</Copyright>
-    <Description>FileKit is a lightweight .NET library for file size formatting, MIME type detection, file signature validation, file type classification, and fluent validation rules for uploads.</Description>
-    <PackageTags>file, file-validation, file-signature, mime-type, file-upload, file-size, detection, validation, utilities, stream, security, signature, file-helper</PackageTags>
+    <Description>
+      SmartFileKit is a lightweight, high-performance .NET library for secure file validation, file security, and advanced file analysis.
+
+      It provides file signature (magic byte) verification, MIME type detection, file classification, cryptographic hashing (MD5, SHA1, SHA256, SHA512), duplicate file detection, and file fingerprinting for reliable file identity.
+
+      The library includes an enterprise-grade file analysis engine with risk scoring, threat detection, polyglot file detection, entropy analysis, and structural validation for Office documents (DOCX, XLSX, PPTX) and archive files (ZIP).
+
+      Designed for secure file upload scenarios, SmartFileKit also provides a fluent validation API, upload policy engine, filename sanitization, and protection against common file-based attacks such as extension spoofing, double extensions, and path traversal.
+
+      Built with zero external dependencies and optimized for performance, it is ideal for ASP.NET Core applications, enterprise systems, and high-scale file processing pipelines.
+    </Description>
+    <PackageTags>
+      file,file-validation,file-security,file-signature,mime-type,file-upload,file-size,stream,validation,security,signature,detection,
+      file-analysis,security-analysis,risk-analysis,threat-detection,secure-upload,
+      hashing,file-hashing,file-hash,sha256,md5,integrity-check,duplicate-detection,fingerprint,file-fingerprint,
+      file-type-detection,file-classification,content-analysis,entropy-analysis,polyglot-detection,
+      upload-policy,file-policy,fluent-api,
+      metadata-extraction,image-metadata,office-metadata,file-inspection,
+      archive-analysis,office-document,docx,xlsx,pptx
+    </PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/erbasaran/SmartFileKit.NET</PackageProjectUrl>
     <RepositoryUrl>https://github.com/erbasaran/SmartFileKit.NET</RepositoryUrl>

@@ -24,6 +24,11 @@ namespace SmartFileKit.Analysis.Archives
         public bool ContainsExecutable { get; }
 
         /// <summary>
+        /// Gets a value indicating whether the archive contains Office macro binaries (vbaProject.bin).
+        /// </summary>
+        public bool ContainsMacros { get; }
+
+        /// <summary>
         /// Gets the detected modern Office format extension if this archive is actually a DOCX, XLSX, or PPTX file.
         /// </summary>
         public string DetectedOfficeFormat { get; }
@@ -40,12 +45,14 @@ namespace SmartFileKit.Analysis.Archives
             bool isCorrupted,
             bool isEncrypted,
             bool containsExecutable,
+            bool containsMacros,
             string detectedOfficeFormat,
             IReadOnlyList<string> fileEntries)
         {
             IsCorrupted = isCorrupted;
             IsEncrypted = isEncrypted;
             ContainsExecutable = containsExecutable;
+            ContainsMacros = containsMacros;
             DetectedOfficeFormat = detectedOfficeFormat;
             FileEntries = fileEntries ?? Array.Empty<string>();
         }
@@ -53,6 +60,6 @@ namespace SmartFileKit.Analysis.Archives
         /// <summary>
         /// Creates a result indicating that archive inspection failed due to corruption.
         /// </summary>
-        public static ArchiveInspectionResult Corrupted() => new ArchiveInspectionResult(true, false, false, null, null);
+        public static ArchiveInspectionResult Corrupted() => new ArchiveInspectionResult(true, false, false, false, null, null);
     }
 }

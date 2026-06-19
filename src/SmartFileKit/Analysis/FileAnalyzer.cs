@@ -246,6 +246,14 @@ namespace SmartFileKit.Analysis
                                 FileRiskLevel.High));
                         }
 
+                        if (zipResult.ContainsMacros)
+                        {
+                            issues.Add(new FileIssue(
+                                IssueType.ExecutableContentDetected,
+                                "The Office document contains macro project binaries (VBA macros).",
+                                FileRiskLevel.High));
+                        }
+
                         // Refine modern Office formats based on zip internal directory
                         if (!string.IsNullOrEmpty(zipResult.DetectedOfficeFormat))
                         {

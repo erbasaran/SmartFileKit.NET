@@ -49,6 +49,13 @@ using SmartFileKit.Domain;
 FileSize maxLimit = 5.MB();
 FileSize minLimit = 500.KB();
 
+// Alternative static creation methods
+FileSize size1 = FileSize.FromBytes(2048);
+FileSize size2 = FileSize.FromKilobytes(1.5);
+FileSize size3 = FileSize.FromMegabytes(10);
+FileSize size4 = FileSize.FromGigabytes(2.5);
+FileSize size5 = FileSize.FromTerabytes(1);
+
 // Convert numeric types to FileSize
 long bytesCount = 1048576 * 3; // 3 MB
 FileSize size = bytesCount.ToFileSize();
@@ -56,15 +63,17 @@ FileSize size = bytesCount.ToFileSize();
 Console.WriteLine(size.ToString());    // Output: "3.00 MB" (Default precision is 2)
 Console.WriteLine(size.ToString(1));   // Output: "3.0 MB"
 
-// Comparisons and arithmetic
+// Comparisons and arithmetic (full support for +, -, *, /, <, >, <=, >=, ==, !=)
 if (size < maxLimit)
 {
     FileSize totalSpace = size + 10.MB();
+    FileSize scaled = minLimit * 3;
+    FileSize halved = maxLimit / 2;
     Console.WriteLine($"Total Space: {totalSpace}"); // Output: "13.00 MB"
 }
 ```
 
-### 2. Filename Sanitization & Dixin Traversal Protection
+### 2. Filename Sanitization & Directory Traversal Protection
 
 Normalize names before saving them to disk. This converts special characters, strips path manipulation tricks, and avoids reserving OS filenames.
 
@@ -89,13 +98,15 @@ string fileName4 = FileName.Sanitize("CON.txt");
 
 ### 3. MIME and Category Detection
 
-Detect the true file format using `Stream` or `byte[]`. Seekable streams are automatically rewound back to their original position after signature inspection.
+Detect the true file format using `Stream`, `byte[]`, or `string` file paths. Seekable streams are automatically rewound back to their original position after signature inspection.
 
 ```csharp
 using System.IO;
 using SmartFileKit;
 using SmartFileKit.Domain;
+using SmartFileKit.Detection;
 
+// Detection from Stream
 using (var stream = File.OpenRead("upload.dat"))
 {
     FileFormatInfo format = FileType.GetFormat(stream);
@@ -107,10 +118,24 @@ using (var stream = File.OpenRead("upload.dat"))
         Console.WriteLine($"Category:  {format.Category}");  // e.g. "Image"
     }
 
-    // Direct helper checks
+    // Direct helper checks (also support byte[] and file path)
     bool isImage = FileType.IsImage(stream);
     bool isArchive = FileType.IsArchive(stream);
 }
+
+// Detection from file path or byte array
+FileFormatInfo formatFromPath = FileType.GetFormat("C:\\uploads\\document.pdf");
+bool isDoc = FileType.IsDocument(new byte[] { 0x25, 0x50, 0x44, 0x46 }); // PDF signature
+bool isVideo = FileType.IsVideo("C:\\uploads\\video.mp4"); // filepath
+
+// Available categories in FileCategory enum:
+// Unknown, Image, Document, Spreadsheet, Presentation, Archive, Audio, Video, Executable, Web, Data
+
+// Dynamic MIME/Category Mapping Lookup using MimeMapper
+string mime = MimeMapper.GetMimeType(".jpg");       // "image/jpeg"
+string ext = MimeMapper.GetExtension("image/png");   // ".png"
+FileCategory cat1 = MimeMapper.GetCategory(".pdf"); // FileCategory.Document
+FileCategory cat2 = MimeMapper.GetCategoryByMimeType("application/zip"); // FileCategory.Archive
 ```
 
 ### 4. Fluent File Validation
@@ -122,12 +147,20 @@ using System;
 using SmartFileKit.Validation;
 using SmartFileKit.Domain;
 
-byte[] fileData = GetUploadedFileBytes(); // E.g., user uploaded "avatar.jpg" but content is EXE!
+byte[] fileData = new byte[] { 0x00, 0x00, 0x00, 0x00 }; // E.g., user upload
 
+// Validate can accept: Stream, byte[], string file path, or FileInfo
 var result = FileValidator.Validate(fileData, "avatar.jpg")
     .MaxSize(5.MB())
+    .MinSize(10.KB())
     .AllowedExtensions(".jpg", ".png")
+    .BlockedExtensions(".gif")
+    .AllowedMimeTypes("image/jpeg", "image/png")
+    .BlockedMimeTypes("image/gif")
     .AllowedCategories(FileCategory.Image)
+    .BlockedCategories(FileCategory.Executable)
+    .VerifySignature(true) // Verify magic bytes (default: true)
+    .AllowEmpty(false)     // Allow empty files (default: false)
     .Execute();
 
 if (!result.IsValid)
@@ -137,9 +170,6 @@ if (!result.IsValid)
     {
         Console.WriteLine($"- {error}");
     }
-    // Output:
-    // - File signature mismatch detected (Spoofing). File extension suggests '.jpg' (Image), but actual content matches '.exe' (Executable).
-    // - File category 'Executable' is not allowed.
 }
 
 // Or throw a FileValidationException directly:
@@ -156,7 +186,38 @@ catch (FileValidationException ex)
 }
 ```
 
-### 5. Advanced File Analysis & Security Engine
+### 5. Reusable Upload Security Policies
+
+Define standard security policies thread-safely once and validate different file streams against them.
+
+```csharp
+using System.IO;
+using SmartFileKit.Security;
+using SmartFileKit.Domain;
+using SmartFileKit.Validation;
+
+// Define a reusable security policy
+public static class SecurityPolicies
+{
+    public static readonly UploadPolicy WebImagePolicy = UploadPolicy.Create()
+        .MaxSize(10.MB())
+        .AllowImages() // Pre-defined helper: PNG, JPG, JPEG, GIF, WEBP, BMP, SVG
+        .BlockExtensions(".exe", ".dll", ".bat") // Extra safety
+        .EnforceSignature(true); // Verify binary signature (magic bytes)
+}
+
+// Validate uploads against the policy in controllers / handlers
+using (var stream = File.OpenRead("user_avatar.png"))
+{
+    FileValidationResult result = SecurityPolicies.WebImagePolicy.Validate(stream, "user_avatar.png");
+    if (!result.IsValid)
+    {
+        Console.WriteLine("Upload policy violated!");
+    }
+}
+```
+
+### 6. Advanced File Analysis & Security Engine
 
 Analyze uploaded files dynamically to perform signature checks, structural checks on ZIP/Office files, polyglot detection, entropy calculation, and generate a security risk score.
 
@@ -196,6 +257,122 @@ using (var stream = File.OpenRead("uploaded.dat"))
     if (report.IsSuspicious)
     {
         Console.WriteLine($"Suspicious file detected! Entropy: {report.Entropy}");
+    }
+}
+```
+
+### 7. Cryptographic Hashing & Duplicate Detection
+
+#### Cryptographic Hashing
+Generate hashes for streams and byte arrays with low-overhead algorithms.
+
+```csharp
+using System.IO;
+using SmartFileKit.Security;
+
+// Hashing streams (MD5, SHA1, SHA256, SHA512)
+using (var stream = File.OpenRead("document.pdf"))
+{
+    string sha256 = FileHash.Sha256(stream);
+    string md5 = FileHash.Calculate(stream, HashAlgorithmType.MD5);
+}
+```
+
+#### File Fingerprinting
+Combine physical and semantic characteristics into a single `FileFingerprint` for unified identification.
+
+```csharp
+using System.IO;
+using SmartFileKit.Security;
+
+using (var stream = File.OpenRead("document.pdf"))
+{
+    FileFingerprint fingerprint = FileFingerprint.Generate(stream, "document.pdf");
+    
+    Console.WriteLine($"Size:           {fingerprint.Size} bytes");
+    Console.WriteLine($"SHA256:         {fingerprint.Sha256}");
+    Console.WriteLine($"MIME Type:      {fingerprint.MimeType}");
+    Console.WriteLine($"Signature Type: {fingerprint.SignatureType}"); // e.g. "pdf"
+    Console.WriteLine($"Category:       {fingerprint.Category}");      // e.g. Document
+}
+```
+
+#### Duplicate Detection
+Compare files byte-by-byte or via pre-calculated fingerprints and hashes.
+
+```csharp
+using System.IO;
+using SmartFileKit.Security;
+
+using (var s1 = File.OpenRead("file1.dat"))
+using (var s2 = File.OpenRead("file2.dat"))
+{
+    // Fast, byte-by-byte comparison of streams (resets positions automatically)
+    bool isDuplicateStream = DuplicateDetector.AreSame(s1, s2);
+    
+    // Compare via pre-computed fingerprints
+    var fp1 = FileFingerprint.Generate(s1);
+    var fp2 = FileFingerprint.Generate(s2);
+    bool isDuplicateFingerprint = DuplicateDetector.AreSame(fp1, fp2);
+    
+    // Hash string comparison helper
+    bool isDuplicateHash = DuplicateDetector.Compare(fp1.Sha256, fp2.Sha256);
+}
+```
+
+### 8. File Name Risk & Security Analysis
+
+Conduct extension validation, double extension checking, and filename safety scans (traversals, reserved words, shell chars).
+
+```csharp
+using SmartFileKit.Security;
+
+// Dangerous extension check
+bool isDangerous = FileSecurity.IsDangerousExtension("setup.exe"); // true
+
+// Double extension verification (invoice.pdf.exe)
+DoubleExtensionResult doubleExt = FileSecurity.HasDoubleExtension("invoice.pdf.exe");
+if (doubleExt.HasDoubleExtension)
+{
+    Console.WriteLine($"Disguised extension: {doubleExt.SecondExtension} (Dangerous: {doubleExt.IsDangerous})");
+}
+
+// Filename risk scan
+FileNameAnalysisResult riskReport = FileSecurity.AnalyzeFileName("../CON.txt");
+if (!riskReport.IsSafe)
+{
+    Console.WriteLine($"Threat Score: {riskReport.RiskScore} / 100");
+    foreach (var issue in riskReport.Issues)
+    {
+        Console.WriteLine($"- {issue}");
+    }
+}
+```
+
+### 9. Image & Office Metadata Readers
+
+Extract metadata from images and Office files without external dependencies.
+
+```csharp
+using SmartFileKit.Security;
+
+// Image dimensions (zero dependency)
+using (var stream = File.OpenRead("photo.jpg"))
+{
+    ImageMetadataResult meta = ImageMetadata.Read(stream);
+    if (meta.IsValid)
+    {
+        Console.WriteLine($"Image: {meta.Width}x{meta.Height} ({meta.Format})");
+    }
+}
+
+// Office properties (author, title, creation, company)
+using (var stream = File.OpenRead("proposal.docx"))
+{
+    OfficeMetadataResult meta = OfficeMetadata.Read(stream);
+    if (meta.IsValid)
+    {
+        Console.WriteLine($"Author: {meta.Author}, Company: {meta.Company}");
     }
 }
 ```

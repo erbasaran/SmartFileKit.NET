@@ -1,6 +1,8 @@
 using SmartFileKit.Domain;
 using SmartFileKit.Validation;
 using SmartFileKit.Analysis;
+using SmartFileKit.Security;
+using SmartFileKit.Detection;
 using System;
 using System.IO;
 using System.IO.Compression;
@@ -23,6 +25,7 @@ namespace SmartFileKit.Sample
             DemoDetection();
             DemoValidation();
             DemoAnalyzer();
+            DemoSecurityAndMetadata();
 
             Console.WriteLine();
             Console.WriteLine("==================================================");
@@ -239,6 +242,67 @@ namespace SmartFileKit.Sample
                 }
                 Console.WriteLine();
             }
+        }
+
+        static void DemoSecurityAndMetadata()
+        {
+            Console.WriteLine("--- 6. Cryptographic Hashing & Duplicate Detection ---");
+            byte[] fileContent = Encoding.UTF8.GetBytes("SmartFileKit Security Engine Demonstration Content");
+            using (var s1 = new MemoryStream(fileContent))
+            using (var s2 = new MemoryStream(fileContent))
+            {
+                string sha256 = FileHash.Sha256(s1);
+                string md5 = FileHash.Calculate(s1, HashAlgorithmType.MD5);
+                bool matches = DuplicateDetector.AreSame(s1, s2);
+
+                Console.WriteLine($"* SHA-256 Hash: {sha256}");
+                Console.WriteLine($"* MD5 Hash:     {md5}");
+                Console.WriteLine($"* Duplicate check AreSame(): {matches}");
+                Console.WriteLine();
+            }
+
+            Console.WriteLine("--- 7. File Name Risk & Security Analysis ---");
+            string filenameA = "invoice.pdf.exe";
+            var doubleExtResult = FileSecurity.HasDoubleExtension(filenameA);
+            Console.WriteLine($"Filename: \"{filenameA}\"");
+            Console.WriteLine($"* Has Double Extension? {doubleExtResult.HasDoubleExtension}");
+            Console.WriteLine($"* Primary: {doubleExtResult.PrimaryExtension}, Secondary: {doubleExtResult.SecondExtension}");
+            Console.WriteLine($"* Is Second Extension Dangerous? {doubleExtResult.IsDangerous}");
+
+            string filenameB = "../../../CON.txt";
+            var pathRisk = FileSecurity.AnalyzeFileName(filenameB);
+            Console.WriteLine($"Filename: \"{filenameB}\"");
+            Console.WriteLine($"* Risk Score: {pathRisk.RiskScore} / 100");
+            foreach (var issue in pathRisk.Issues)
+            {
+                Console.WriteLine($"  - {issue}");
+            }
+            Console.WriteLine();
+
+            Console.WriteLine("--- 8. Image & Office Metadata Readers ---");
+            // Mock PNG image
+            byte[] mockPng = new byte[30];
+            mockPng[0] = 0x89; mockPng[1] = 0x50; mockPng[2] = 0x4E; mockPng[3] = 0x47;
+            mockPng[4] = 0x0D; mockPng[5] = 0x0A; mockPng[6] = 0x1A; mockPng[7] = 0x0A;
+            mockPng[12] = 0x49; mockPng[13] = 0x48; mockPng[14] = 0x44; mockPng[15] = 0x52; // IHDR
+            // Width 1280 (0x0500), Height 720 (0x02D0)
+            mockPng[16] = 0x00; mockPng[17] = 0x00; mockPng[18] = 0x05; mockPng[19] = 0x00; // width 1280
+            mockPng[20] = 0x00; mockPng[21] = 0x00; mockPng[22] = 0x02; mockPng[23] = 0xD0; // height 720
+            
+            using (var stream = new MemoryStream(mockPng))
+            {
+                var meta = ImageMetadata.Read(stream);
+                if (meta.IsValid)
+                {
+                    Console.WriteLine($"Image Metadata: Format={meta.Format}, Resolution={meta.Width}x{meta.Height}");
+                }
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("--- 9. File Signature Database Registry ---");
+            var databaseJson = FileSignatureDatabase.ExportJson();
+            Console.WriteLine($"* JSON Database Registry (Snippet):\n{databaseJson.Substring(0, Math.Min(250, databaseJson.Length))}...");
+            Console.WriteLine();
         }
     }
 }
