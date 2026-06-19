@@ -1,8 +1,6 @@
 # SmartFileKit
 
-SmartFileKit is a lightweight, high-performance, and secure file validation, classification, and detection library for .NET with **zero external dependencies**.
-
-It targets **.NET Standard 2.0**, making it fully compatible with .NET Framework 4.6.1+, .NET Core 2.0+, and .NET 5/6/7/8/9+.
+**SmartFileKit** is a **lightweight**, **high-performance**, and **security-focused** .NET library designed for **secure file validation**, **file signature (magic byte) verification**, **MIME type detection**, and **file classification**. Built with **reliability**, **performance**, and **zero external dependencies** in mind, it is ideal for **enterprise applications** and **secure file upload scenarios**.
 
 [![NuGet Version](https://img.shields.io/nuget/v/SmartFileKit.svg?style=flat-square)](https://www.nuget.org/packages/SmartFileKit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
