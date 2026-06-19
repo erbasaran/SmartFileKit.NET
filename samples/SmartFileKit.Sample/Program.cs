@@ -1,5 +1,9 @@
 using SmartFileKit.Domain;
 using SmartFileKit.Validation;
+using SmartFileKit.Analysis;
+using System;
+using System.IO;
+using System.IO.Compression;
 using System.Text;
 
 namespace SmartFileKit.Sample
@@ -18,6 +22,7 @@ namespace SmartFileKit.Sample
             DemoSanitizer();
             DemoDetection();
             DemoValidation();
+            DemoAnalyzer();
 
             Console.WriteLine();
             Console.WriteLine("==================================================");
@@ -136,6 +141,103 @@ namespace SmartFileKit.Sample
             {
                 Console.WriteLine("Caught Expected Exception:");
                 Console.WriteLine(ex.Message);
+            }
+            Console.WriteLine();
+        }
+
+        static void DemoAnalyzer()
+        {
+            Console.WriteLine("--- 5. Advanced File Analysis & Security Engine ---");
+            Console.WriteLine();
+
+            // Case A: Spoofed File (EXE disguised as PDF)
+            byte[] spoofedBytes = new byte[100];
+            spoofedBytes[0] = 0x4D; spoofedBytes[1] = 0x5A; // MZ header
+            using (var stream = new MemoryStream(spoofedBytes))
+            {
+                var report = FileAnalyzer.Analyze(stream, "annual_report.pdf");
+                Console.WriteLine("Case A: Spoofed File (MZ Executable renamed to annual_report.pdf):");
+                Console.WriteLine($"* Is Safe?       {report.IsSafe}");
+                Console.WriteLine($"* Is Suspicious? {report.IsSuspicious}");
+                Console.WriteLine($"* Risk Score:    {report.RiskScore} / 100 ({report.RiskLevel})");
+                Console.WriteLine($"* Actual Type:   {report.ActualFileType}");
+                foreach (var issue in report.Issues)
+                {
+                    Console.WriteLine($"  - [{issue.Severity}] {issue.Type}: {issue.Description}");
+                }
+                Console.WriteLine();
+            }
+
+            // Case B: ZIP Archive containing a hidden Executable
+            using (var ms = new MemoryStream())
+            {
+                using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, true))
+                {
+                    var entry = archive.CreateEntry("dangerous_payload.exe");
+                    using (var writer = new StreamWriter(entry.Open()))
+                    {
+                        writer.Write("MZ..."); // dummy exe
+                    }
+                }
+                ms.Position = 0;
+
+                var report = FileAnalyzer.Analyze(ms, "documents.zip");
+                Console.WriteLine("Case B: ZIP Archive containing inner executable:");
+                Console.WriteLine($"* Is Safe?       {report.IsSafe}");
+                Console.WriteLine($"* Risk Score:    {report.RiskScore} / 100 ({report.RiskLevel})");
+                foreach (var issue in report.Issues)
+                {
+                    Console.WriteLine($"  - [{issue.Severity}] {issue.Type}: {issue.Description}");
+                }
+                Console.WriteLine();
+            }
+
+            // Case C: Polyglot File Detection (PDF carrying nested MZ PE executable)
+            byte[] polyglotBytes = new byte[1024];
+            polyglotBytes[0] = 0x25; polyglotBytes[1] = 0x50; polyglotBytes[2] = 0x44; polyglotBytes[3] = 0x46; // %PDF
+            int mzOffset = 100;
+            polyglotBytes[mzOffset] = 0x4D; polyglotBytes[mzOffset + 1] = 0x5A; // MZ
+            int peOffset = 16;
+            polyglotBytes[mzOffset + 0x3C] = (byte)peOffset; // PE Offset
+            int peStart = mzOffset + peOffset;
+            polyglotBytes[peStart] = 0x50; polyglotBytes[peStart + 1] = 0x45; // PE\x00\x00
+            
+            using (var stream = new MemoryStream(polyglotBytes))
+            {
+                var report = FileAnalyzer.Analyze(stream, "legit.pdf");
+                Console.WriteLine("Case C: Polyglot File (PDF embedding MZ/PE Executable):");
+                Console.WriteLine($"* Is Safe?       {report.IsSafe}");
+                Console.WriteLine($"* Is Suspicious? {report.IsSuspicious}");
+                Console.WriteLine($"* Risk Score:    {report.RiskScore} / 100");
+                foreach (var issue in report.Issues)
+                {
+                    Console.WriteLine($"  - [{issue.Severity}] {issue.Type}: {issue.Description}");
+                }
+                Console.WriteLine();
+            }
+
+            // Case D: Entropy Analysis & Builder API
+            byte[] plainTextBytes = Encoding.UTF8.GetBytes(new string('A', 2000));
+            byte[] highEntropyBytes = new byte[2000];
+            new Random().NextBytes(highEntropyBytes);
+
+            using (var plainStream = new MemoryStream(plainTextBytes))
+            using (var highStream = new MemoryStream(highEntropyBytes))
+            {
+                var plainReport = FileAnalyzer.Create().CheckEntropy(true).Analyze(plainStream, "regular.txt");
+                var highReport = FileAnalyzer.Create().CheckEntropy(true, threshold: 7.0).Analyze(highStream, "hidden.txt");
+
+                Console.WriteLine("Case D: Entropy Analysis & Builder API:");
+                Console.WriteLine($"* Regular text entropy: {plainReport.Entropy:F2} (Is Suspicious: {plainReport.IsSuspicious})");
+                Console.WriteLine($"* Obfuscated text entropy: {highReport.Entropy:F2} (Is Suspicious: {highReport.IsSuspicious})");
+                if (highReport.IsSuspicious)
+                {
+                    foreach (var issue in highReport.Issues)
+                    {
+                        Console.WriteLine($"  - [{issue.Severity}] {issue.Type}: {issue.Description}");
+                    }
+                }
+                Console.WriteLine();
             }
         }
     }

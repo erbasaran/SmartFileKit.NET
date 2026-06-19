@@ -14,6 +14,7 @@
 - **Content-Based Magic Bytes Verification:** Inspect leading header bytes (up to 4096 bytes) rather than relying solely on file extensions. This prevents extension-spoofing attacks (e.g., detecting `.exe` binaries disguised as `.jpg` or arbitrary ZIP packages renamed to `.docx`).
 - **Filename Sanitization:** Clean user-supplied filenames by converting Turkish characters to their English equivalents, removing invalid filesystem chars, mitigating directory traversal attacks, and preventing Windows reserved device name collisions (`CON`, `PRN`, `NUL`, etc.).
 - **Fluent Validation API:** A highly readable builder syntax for size ranges, allowed/blocked extensions, allowed/blocked MIME types, allowed/blocked categories, and active signature validation.
+- **Advanced File Analysis & Security Engine:** Dynamically analyze files to generate detailed reports containing risk scores (0-100), risk levels, threat issue lists, Office file structure validation (refines ZIP to DOCX/XLSX/PPTX), ZIP archive inner executable scanning, polyglot file detection (multiple signatures), and Shannon Entropy calculations.
 - **Zero-Dependency & Low-Allocation:** Completely self-contained library utilizing array and stream buffer pooling to maximize throughput in high-scale ASP.NET Core APIs.
 
 ---
@@ -152,6 +153,50 @@ try
 catch (FileValidationException ex)
 {
     Console.WriteLine(ex.Message);
+}
+```
+
+### 5. Advanced File Analysis & Security Engine
+
+Analyze uploaded files dynamically to perform signature checks, structural checks on ZIP/Office files, polyglot detection, entropy calculation, and generate a security risk score.
+
+```csharp
+using System.IO;
+using SmartFileKit.Analysis;
+using SmartFileKit.Domain;
+
+// Simple analysis
+using (var stream = File.OpenRead("invoice.pdf"))
+{
+    FileAnalysisReport report = FileAnalyzer.Analyze(stream, "invoice.pdf");
+    
+    Console.WriteLine($"Is Safe:      {report.IsSafe}");
+    Console.WriteLine($"Is Suspicious: {report.IsSuspicious}");
+    Console.WriteLine($"Risk Score:    {report.RiskScore} / 100");
+    Console.WriteLine($"Risk Level:    {report.RiskLevel}");
+    Console.WriteLine($"Actual Type:   {report.ActualFileType}"); // e.g. "pdf"
+    
+    foreach (var issue in report.Issues)
+    {
+        Console.WriteLine($"- Warning: {issue.Type} - {issue.Description} ({issue.Severity})");
+    }
+}
+
+// Advanced fluent configuration
+using (var stream = File.OpenRead("uploaded.dat"))
+{
+    FileAnalysisReport report = FileAnalyzer.Create()
+        .ValidateSignature(true)
+        .ValidateMime(true)
+        .ValidateStructure(true)
+        .CalculateRiskScore(true)
+        .CheckEntropy(true, threshold: 7.5)
+        .Analyze(stream, "data.txt", "text/plain");
+
+    if (report.IsSuspicious)
+    {
+        Console.WriteLine($"Suspicious file detected! Entropy: {report.Entropy}");
+    }
 }
 ```
 
